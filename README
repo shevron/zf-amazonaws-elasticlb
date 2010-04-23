@@ -17,6 +17,36 @@ at http://framework.zend.com/license/new-bsd
 
 Comments and patches are most welcome!
 
-
 Shahar Evron, <shahar.e@zend.com>
+
+Currently Implemented Methods:
+------------------------------
+- create 
+    Create a new load balancer
+
+- delete
+    Delete a load balancer
+
+- registerInstances
+    Register machine instances with a load balancer
+
+Work In Progress:
+-----------------
+- describe
+    Describe an existing load balancer
+
+Still missing:
+--------------
+The following are API commands still not implemented. Note that when (if) they
+are implemented, they might be assigned shorter PHP method names:
+
+- configureHealthCheck
+- deregisterInstances
+- describeInstanceHealth
+- disableAvailabilityZone
+- enableAvailabilityZone
+- createAppCookieStickinessPolicy
+- createLBCookieStickinessPolicy
+- setLoadBalancerPoliciesOfListener
+- deleteLoadBalancerPolicy
 
