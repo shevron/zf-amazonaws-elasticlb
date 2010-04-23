@@ -106,7 +106,12 @@ class Zend_Service_Amazon_Ec2_ElasticLB extends Zend_Service_Amazon_Ec2_Abstract
         var_dump($response);
         
         $return = array(
-        );/*
+        );
+        
+        /*
+         
+        TODO: Implement me!
+         
         $return['snapshotId']   = $xpath->evaluate('string(//ec2:snapshotId/text())');
         $return['volumeId']     = $xpath->evaluate('string(//ec2:volumeId/text())');
         $return['status']       = $xpath->evaluate('string(//ec2:status/text())');
@@ -234,6 +239,60 @@ class Zend_Service_Amazon_Ec2_ElasticLB extends Zend_Service_Amazon_Ec2_Abstract
         $this->_checkExpectedResponseType($response, 'DeleteLoadBalancerResponse');
         
         return true;
+    }
+    
+    public function registerInstances($name, $instances)
+    {
+        // Validate load balancer name
+        if (! $this->_validateLbName($name)) {                   
+            $message = "Invalid load balancer name: '$name'";
+            throw new Zend_Service_Amazon_Ec2_Exception($message);
+        }
+        
+        $params = array(
+            'Action'           => 'RegisterInstancesWithLoadBalancer',
+            'LoadBalancerName' => $name
+        );
+        
+        // Validate and set instance(s)
+        $invalid = false;
+        if (is_array($instances) && ! empty($instances)) {
+            $i = 1;
+            foreach($instances as $instance) {
+                if (! (is_string($instance) && trim($instance))) {
+                    $invalid = true;
+                    break;
+                }
+                $params['Instances.member.' . $i++ . '.InstanceId'] = trim($instance);
+            }
+        } elseif (is_string($instances) && trim($instances)) {
+            $params['Instances.member.1.InstanceId'] = trim($instances);
+                
+        } else {
+            $invalid = true;
+        }
+        
+        if ($invalid) {
+            if (isset($instance)) $instances = $instance;
+            $message = "Invalid instance ID '$instances'";
+            throw new Zend_Service_Amazon_Ec2_Exception($message);
+        }
+        
+        $response = $this->sendRequest($params);
+        $this->_checkExpectedResponseType($response, 
+            'RegisterInstancesWithLoadBalancerResponse');
+        
+        $return = array(
+            'Instances' => array()
+        );
+        
+        $xpath = $response->getXPath();
+        $instanceIds = $xpath->evaluate('//ec2:Instances/ec2:member/ec2:InstanceId');
+        foreach ($instanceIds as $iid) {
+            $return['Instances'][] = $iid->nodeValue;
+        }
+        
+        return $return;
     }
 
     /**

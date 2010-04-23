@@ -307,8 +307,77 @@ ENDXML
     }
     
     /**
+     * registerInstance tests
+     */
+    
+    /**
+     * Test that an exception is thrown if invalid name is passed here
+     * 
+     * @param string $name
+     * @dataProvider invalidNameProvider
+     * @expectedException Zend_Service_Amazon_Ec2_Exception
+     */
+    public function testRegisterInstancesInvalidName($name)
+    {
+        $this->_elb->registerInstances($name, 'i-a12345');        
+    }
+    
+    /**
+     * Test that an exception is thrown if invalid instance ID is passed
+     * 
+     * @param string $instanceId
+     * @dataProvider invalidInstanceIdProvider
+     * @expectedException Zend_Service_Amazon_Ec2_Exception
+     */
+    public function testRegisterInstancesInvalidInstanceId($instanceId)
+    {
+        $this->_elb->registerInstances('mylb', $instanceId);        
+    }
+    
+    public function testRegisterInstancesReturnsInstaceIds()
+    {
+        $instanceIds = array('i-a2b10ed5', 'i-a0b10ed7');
+        
+        $this->_adapter->setResponse($this->_createFakeResponse(
+<<<ENDXML
+<?xml version="1.0"?>
+<RegisterInstancesWithLoadBalancerResponse xmlns="http://elasticloadbalancing.amazonaws.com/doc/2009-11-25/">
+  <RegisterInstancesWithLoadBalancerResult>
+    <Instances>
+      <member>
+        <InstanceId>i-a2b10ed5</InstanceId>
+      </member>
+      <member>
+        <InstanceId>i-a0b10ed7</InstanceId>
+      </member>
+    </Instances>
+  </RegisterInstancesWithLoadBalancerResult>
+  <ResponseMetadata>
+    <RequestId>6e1504da-4f0b-11df-9f81-21ac009b4e49</RequestId>
+  </ResponseMetadata>
+</RegisterInstancesWithLoadBalancerResponse>
+ENDXML
+        ));
+        
+        $result = $this->_elb->registerInstances('myLb', $instanceIds);
+        
+        $this->assertEquals(array('Instances' => $instanceIds), $result);
+    }
+    
+    /**
      * Data Providers
      */
+    
+    static public function invalidInstanceIdProvider()
+    {
+        return array(
+            array(array()),
+            array(''),
+            array('  '),
+            array(array('i-1235', null)),
+            array(null),
+        );
+    }
     
     static public function validCreateLoadBalancerProvider()
     {
