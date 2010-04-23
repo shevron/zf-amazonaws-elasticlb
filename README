@@ -1,0 +1,22 @@
+------------------------------------------------------------------------------
+Disclaimer: This is not an official part of the Zend Framework. 
+------------------------------------------------------------------------------
+
+This is an experimental (read: not official, may change, may die and never be 
+finished) implementation of a client for the Amazon EC2 Elastic Load Balancing
+API for Zend Framework. 
+
+I am writing it to scratch my own itch, but if it ever gets fully implemented
+and brought-up to the ZF standards, it could be merged to become an official 
+part of the Zend_Service_Amazon_Ec2 set of components. I am implementing it
+to follow more or less the same interface guidelines and standards as these
+existing components. 
+
+Use at your own risk under the terms of the New BSD License, viewable on-line
+at http://framework.zend.com/license/new-bsd
+
+Comments and patches are most welcome!
+
+
+Shahar Evron, <shahar.e@zend.com>
+
