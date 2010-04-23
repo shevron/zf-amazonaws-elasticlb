@@ -42,7 +42,7 @@ class Zend_Service_Amazon_Ec2_ElasticLB_Listener
     const HTTP = 'HTTP';
     const TCP  = 'TCP';
 
-    static protected $_validProtocols = array('HTTP', 'TCP');
+    protected $_validProtocols = array('HTTP', 'TCP');
     
     /**
      * Load balancer port
@@ -161,7 +161,7 @@ class Zend_Service_Amazon_Ec2_ElasticLB_Listener
     public function setProtocol($protocol)
     {
         $protocol = (string) $protocol;
-        if (! in_array($protocol, self::$_validProtocols)) {
+        if (! in_array($protocol, $this->_validProtocols)) {
             $message = "Protocol '$protocol' is not a valid Listener protocol";
             require_once 'Zend/Service/Amazon/Ec2/Exception.php';
             throw new Zend_Service_Amazon_Ec2_Exception($message);

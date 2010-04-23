@@ -65,7 +65,11 @@ class Zend_Service_Amazon_Ec2_ElasticLBTest extends PHPUnit_Framework_TestCase
         parent::setUp();
 
         $this->_adapter = new Zend_Http_Client_Adapter_Test();
-        $this->_elb = new Zend_Service_Amazon_Ec2_ElasticLB('access_key', 'secret_access_key');
+        $this->_elb = new Zend_Service_Amazon_Ec2_ElasticLB(
+            'access_key', 
+            'secret_access_key',
+            'us-east-1'
+        );
         $this->_elb->getHttpClient()->setAdapter($this->_adapter);
     }
 
@@ -104,6 +108,16 @@ class Zend_Service_Amazon_Ec2_ElasticLBTest extends PHPUnit_Framework_TestCase
     }
     
     /**
+     * Make sure an exception is thrown if the region is not set somehow
+     * 
+     * @expectedException Zend_Service_Amazon_Ec2_Exception
+     */
+    public function testNotSettingRegionThrowsException()
+    {
+        $elb = new Zend_Service_Amazon_Ec2_ElasticLB('accessKey', 'secretKey');
+    }
+    
+    /**
      * Create Load Balancer tests
      */
 
@@ -111,12 +125,16 @@ class Zend_Service_Amazon_Ec2_ElasticLBTest extends PHPUnit_Framework_TestCase
      * Test that passing an invalid availablity zone throws an exception
      * 
      * @param string $zone
+     * @param string $region
+     * 
      * @dataProvider invalidZoneProvider
      * @expectedException Zend_Service_Amazon_Ec2_Exception
      */
-    public function testCreateLBInvalidAvailabilityZone($zone)
+    public function testCreateLBInvalidAvailabilityZone($zone, $region = 'us-east-1')
     {
-        $this->_elb->create('validName', $zone, $this->_getValidListener());
+        Zend_Service_Amazon_Ec2_ElasticLB::setRegion($region);
+        $elb = new Zend_Service_Amazon_Ec2_ElasticLB('accessKey', 'secretKey');  
+        $elb->create('validName', $zone, $this->_getValidListener());        
     }
 
     /**
@@ -128,7 +146,7 @@ class Zend_Service_Amazon_Ec2_ElasticLBTest extends PHPUnit_Framework_TestCase
      */
     public function testCreateLBInvalidName($name)
     {
-        $this->_elb->create($name, 'eu-west-1a', $this->_getValidListener());
+        $this->_elb->create($name, 'us-east-1a', self::_getValidListener());
     }
     
     /**
@@ -140,15 +158,39 @@ class Zend_Service_Amazon_Ec2_ElasticLBTest extends PHPUnit_Framework_TestCase
      */
     public function testCreateLBInvalidListeners($listener)
     {
-        $this->_elb->create('myLoadBalancer', 'eu-west-1a', $listener);
+        $this->_elb->create('myLoadBalancer', 'us-east-1a', $listener);
+    }
+    
+    /**
+     * Test that all is OK when valid input is provided
+     * 
+     * @param string                                           $name
+     * @param string|array                                     $zone
+     * @param Zend_Service_Amazon_Ec2_ElasticLB_Listener|array $listener
+     * 
+     * @dataProvider validCreateLoadBalancerProvider
+     */
+    public function testCreateLoadBalancerValidInput($name, $zone, $listener)
+    {
+        $this->_adapter->setResponse($this->_createFakeResponse(
+<<<ENDXML
+<CreateLoadBalancerResult>
+  <DNSName>TestLoadBalancer-380544827.us-east-1.elb.amazonaws.com</DNSName>
+  </CreateLoadBalancerResult>
+ENDXML
+        ));
+        try {
+            $this->_elb->create($name, $zone, $listener);
+        } catch (Zend_Service_Amazon_Ec2_Exception $ex) {
+            $this->fail("Unexpected exception: $ex");
+        }
+        
+        $request = $this->_elb->getHttpClient()->getLastRequest();
+        $this->assertContains('Action=CreateLoadBalancer', $request);
+        $this->assertContains('LoadBalancerName=' . urlencode($name), $request);
     }
     
     public function testCreateLoadBalancerInvalidResponse()
-    {
-        $this->markTestIncomplete("Not implemneted yet");
-    }
-    
-    public function testCreateLoadBalancer()
     {
         $this->markTestIncomplete("Not implemneted yet");
     }
@@ -157,12 +199,27 @@ class Zend_Service_Amazon_Ec2_ElasticLBTest extends PHPUnit_Framework_TestCase
      * Data Providers
      */
     
+    static public function validCreateLoadBalancerProvider()
+    {
+        return array(
+            array('myLoadBalancer', 'us-east-1a', self::_getValidListener()),
+            array('myLoadBalancer', 'us-east-1a', array(self::_getValidListener())),
+            array('myLoadBalancer', 'us-east-1b', array(self::_getValidListener())),
+            array('myLoadBalancer', array('us-east-1b'), self::_getValidListener()),
+            array('other-loadbalancer', array('us-east-1b'), self::_getValidListener()),
+            array('l', array('us-east-1b'), self::_getValidListener()),
+            array('lb', array('us-east-1b'), self::_getValidListener()),
+            array('l-b', 'us-east-1b', self::_getValidListener()),
+        );         
+    }
+    
     static public function invalidListenerProvider()
     {
         return array(
             array(''),
             array(null),
             array('HTTP'),
+            array(array(self::_getValidListener(), 'HTTP')),
             array(array(80, 80, 'HTTP')),
             array(array()),
             array(80),
@@ -174,11 +231,15 @@ class Zend_Service_Amazon_Ec2_ElasticLBTest extends PHPUnit_Framework_TestCase
     {
         return array(
             array(''),
+            array(array()),
+            array(array('eu-east-1a', 'bogus')),
             array(null),
             array('fake one'),
             array('eu-west-1'),
             array('eu-west-1g'),
             array('eu-east-1a'),
+            array('us-west-1a', 'us-east-1'),
+            array('us-east-1a', 'eu-west-1'),
         );
     }
     
@@ -187,6 +248,7 @@ class Zend_Service_Amazon_Ec2_ElasticLBTest extends PHPUnit_Framework_TestCase
         return array(
             array(''),
             array(null),
+            array(array('name')),
             array('my load balancer'),
             array('my.loadbalancer'),
             array('his_LoadBalancer'),
@@ -230,7 +292,7 @@ ENDXML
      * 
      * @return Zend_Service_Amazon_Ec2_ElasticLB_Listener
      */
-    protected function _getValidListener()
+    static protected function _getValidListener()
     {
         return new Zend_Service_Amazon_Ec2_ElasticLB_Listener(80, 80, 'HTTP');
     }

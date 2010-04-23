@@ -45,6 +45,17 @@ require_once 'Zend/Service/Amazon/Ec2/ElasticLB/Response.php';
 class Zend_Service_Amazon_Ec2_ElasticLB extends Zend_Service_Amazon_Ec2_Abstract
 {
     /**
+     * List of valid availability zones per region
+     * 
+     * @var array
+     */
+    protected $_validZones = array(
+        'eu-west-1' => array('eu-west-1a', 'eu-west-1b'),
+        'us-east-1' => array('us-east-1a', 'us-east-1b', 'us-east-1c', 'us-east-1d'),
+        'us-west-1' => array('us-west-1a', 'us-west-1b'),
+    );
+    
+    /**
      * The HTTP query server
      */
     protected $_ec2Endpoint = 'amazonaws.com';
@@ -54,10 +65,29 @@ class Zend_Service_Amazon_Ec2_ElasticLB extends Zend_Service_Amazon_Ec2_Abstract
      */
     protected $_ec2ApiVersion = '2009-11-25';
     
+    /**
+     * Create Amazon Elastic Load Balancing client.
+     *
+     * @param  string $access_key       Override the default Access Key
+     * @param  string $secret_key       Override the default Secret Key
+     * @param  string $region           Sets the AWS Region
+     * @return void
+     */
+    public function __construct($accessKey = null, $secretKey = null, $region = null)
+    {
+        parent::__construct($accessKey, $secretKey, $region);
+        
+        if (! $this->_region) {
+            $message = "Region must be set in order to use EC2 ELB";
+            throw new Zend_Service_Amazon_Ec2_Exception($message);
+        }
+    }
+    
     public function describe($lbnames = null)
     {
-        $params = array();
-        $params['Action']       = 'DescribeLoadBalancers';
+        $params = array(
+            'Action' => 'DescribeLoadBalancers'
+        );
         
         if (is_array($lbnames)) {
             $i = 1;
@@ -96,7 +126,73 @@ class Zend_Service_Amazon_Ec2_ElasticLB extends Zend_Service_Amazon_Ec2_Abstract
      */
     public function create($name, $zone, $listeners)
     {
+        // Validate load balancer name
+        if (! (is_string($name) && 
+               preg_match('/^[\p{L}0-9][\p{L}0-9-]{0,31}$/u', $name) &&
+               (! preg_match('/-$/', $name)))) {
+                   
+            $message = "Invalid load balancer name '$name'";
+            throw new Zend_Service_Amazon_Ec2_Exception($message);
+        }
         
+        $params = array(
+            'Action'           => 'CreateLoadBalancer',
+            'LoadBalancerName' => $name
+        );
+        
+        // Validate and set availability zone(s)
+        $invalid = false;
+        if (is_array($zone) && ! empty($zone)) {
+            $i = 1;
+            foreach($zone as $az) {
+                if (! $this->_validateZone($az)) {
+                    $invalid = true;
+                    break;
+                }
+                $params['AvailabilityZones.member.' . $i++] = $az;
+            }
+        } elseif (is_string($zone)) {
+            if ($this->_validateZone($zone)) {
+                $params['AvailabilityZones.member.1'] = $zone;    
+            } else {
+                $invalid = true;
+            }
+        } else {
+            $invalid = true;
+        }
+        
+        if ($invalid) {
+            if (isset($az)) $zone = $az;
+            $message = "Invalid availability zone '$zone' for region '$this->_region'";
+            throw new Zend_Service_Amazon_Ec2_Exception($message);
+        }
+        
+        // Validate and set listeners
+        if (is_array($listeners) && ! empty($listeners)) {
+            $i = 1;
+            foreach($listeners as $listener) {
+                if ($listener instanceof Zend_Service_Amazon_Ec2_ElasticLB_Listener) {
+                    $params = array_merge($params, $listener->toParametersArray($i++));
+                } else {
+                    $invalid = true;
+                }
+            }
+            
+        } elseif ($listeners instanceof Zend_Service_Amazon_Ec2_ElasticLB_Listener) {
+            $params = array_merge($params, $listeners->toParametersArray(1));
+            
+        } else {
+            $invalid = true;
+        }
+        
+        if ($invalid) {
+            $message = "Invalid listener, expecting a Zend_Service_Amazon_Ec2_ElasticLB_Listener object";
+            throw new Zend_Service_Amazon_Ec2_Exception($message);
+        }
+        
+        $response = $this->sendRequest($params);
+        
+        var_dump($response);
     }
     
     public function delete()
@@ -104,6 +200,21 @@ class Zend_Service_Amazon_Ec2_ElasticLB extends Zend_Service_Amazon_Ec2_Abstract
         
     }
 
+    /**
+     * Validate a provided availability zone
+     * 
+     * @param  string $zone
+     * @return boolean
+     */
+    protected function _validateZone($zone)
+    {
+        if (! in_array($zone, $this->_validZones[$this->_region])) {
+            return false;
+        }
+        
+        return true;
+    }
+    
     /**
      * Sends a HTTP request to the AWS service using Zend_Http_Client
      *
