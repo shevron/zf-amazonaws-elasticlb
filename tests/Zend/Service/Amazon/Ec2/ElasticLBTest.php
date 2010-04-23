@@ -58,6 +58,38 @@ class Zend_Service_Amazon_Ec2_ElasticLBTest extends PHPUnit_Framework_TestCase
     protected $_adapter = null;
     
     /**
+     * "Real" access key, if on-line tests are enabled
+     * 
+     * @var null|string
+     */
+    static protected $_onlineAK = null;
+    
+    /**
+     * "Real" secret key, if on-line tests are enabled
+     * 
+     * @var null|string
+     */
+    static protected $_onlineSK = null;
+    
+    /**
+     * Region for on-line tests
+     * 
+     * @todo Should this be configurable?
+     * @var string
+     */
+    static protected $_onlineRegion = 'eu-west-1';
+    
+    static public function setUpBeforeClass()
+    {
+        if (defined('TESTS_ZEND_SERVICE_AMAZON_ONLINE_ENABLED') && 
+            TESTS_ZEND_SERVICE_AMAZON_ONLINE_ENABLED) {
+
+            self::$_onlineAK = TESTS_ZEND_SERVICE_AMAZON_ONLINE_ACCESSKEYID;
+            self::$_onlineSK = TESTS_ZEND_SERVICE_AMAZON_ONLINE_SECRETKEY;
+        }
+    }
+    
+    /**
      * Prepares the environment before running a test.
      */
     protected function setUp()
@@ -133,7 +165,8 @@ class Zend_Service_Amazon_Ec2_ElasticLBTest extends PHPUnit_Framework_TestCase
     public function testCreateLBInvalidAvailabilityZone($zone, $region = 'us-east-1')
     {
         Zend_Service_Amazon_Ec2_ElasticLB::setRegion($region);
-        $elb = new Zend_Service_Amazon_Ec2_ElasticLB('accessKey', 'secretKey');  
+        $elb = new Zend_Service_Amazon_Ec2_ElasticLB('accessKey', 'secretKey');
+        $elb->getHttpClient()->setAdapter($this->_adapter);
         $elb->create('validName', $zone, $this->_getValidListener());        
     }
 
@@ -174,9 +207,14 @@ class Zend_Service_Amazon_Ec2_ElasticLBTest extends PHPUnit_Framework_TestCase
     {
         $this->_adapter->setResponse($this->_createFakeResponse(
 <<<ENDXML
-<CreateLoadBalancerResult>
-  <DNSName>TestLoadBalancer-380544827.us-east-1.elb.amazonaws.com</DNSName>
+<CreateLoadBalancerResponse xmlns="http://elasticloadbalancing.amazonaws.com/doc/2009-11-25/">
+  <CreateLoadBalancerResult>
+    <DNSName>testLoadBalancer-1962097299.eu-west-1.elb.amazonaws.com</DNSName>
   </CreateLoadBalancerResult>
+  <ResponseMetadata>
+    <RequestId>7cfd29f0-4efe-11df-9f81-21ac009b4e49</RequestId>
+  </ResponseMetadata>
+</CreateLoadBalancerResponse>
 ENDXML
         ));
         try {
@@ -190,9 +228,82 @@ ENDXML
         $this->assertContains('LoadBalancerName=' . urlencode($name), $request);
     }
     
+    /**
+     * Make sure an exception is thrown if we get an unexpected response
+     * 
+     * @expectedException Zend_Service_Amazon_Ec2_Exception
+     */
     public function testCreateLoadBalancerInvalidResponse()
     {
-        $this->markTestIncomplete("Not implemneted yet");
+        $this->_adapter->setResponse($this->_createFakeResponse(
+<<<ENDXML
+<DeleteLoadBalancerResponse xmlns="http://elasticloadbalancing.amazonaws.com/doc/2009-11-25/">
+  <CreateLoadBalancerResult>
+    <DNSName>lbj-1962097299.eu-west-1.elb.amazonaws.com</DNSName>
+  </CreateLoadBalancerResult>
+  <ResponseMetadata>
+    <RequestId>7cfd29f0-4efe-11df-9f81-21ac009b4e49</RequestId>
+  </ResponseMetadata>
+</DeleteLoadBalancerResponse>
+ENDXML
+        ));
+        
+        $response = $this->_elb->create('lbj', 'us-east-1a', self::_getValidListener());
+    }
+    
+    public function testCreateLoadBalancerValidResponse()
+    {
+        $name = 'validLbName';
+        
+        $this->_adapter->setResponse($this->_createFakeResponse(
+<<<ENDXML
+<CreateLoadBalancerResponse xmlns="http://elasticloadbalancing.amazonaws.com/doc/2009-11-25/">
+  <CreateLoadBalancerResult>
+    <DNSName>$name-1962097299.eu-west-1.elb.amazonaws.com</DNSName>
+  </CreateLoadBalancerResult>
+  <ResponseMetadata>
+    <RequestId>7cfd29f0-4efe-11df-9f81-21ac009b4e49</RequestId>
+  </ResponseMetadata>
+</CreateLoadBalancerResponse>
+ENDXML
+        ));
+        
+        $response = $this->_elb->create($name, 'us-east-1a', self::_getValidListener());
+        
+        $this->assertRegExp("/^$name-/", $response['DNSName']);
+    }
+    
+    /**
+     * Delete load balancer tests 
+     */
+    
+    /**
+     * Test that passing an invalid name throws an exception
+     * 
+     * @param string $name
+     * @dataProvider invalidNameProvider
+     * @expectedException Zend_Service_Amazon_Ec2_Exception
+     */
+    public function testDeleteLBInvalidName($name)
+    {
+        $this->_elb->delete($name);
+    }
+    
+    public function testDeleteLoadBalancer()
+    {
+        $this->_adapter->setResponse(self::_createFakeResponse(
+<<<ENDXML
+<?xml version="1.0"?>
+<DeleteLoadBalancerResponse xmlns="http://elasticloadbalancing.amazonaws.com/doc/2009-11-25/">
+  <DeleteLoadBalancerResult/>
+  <ResponseMetadata>
+    <RequestId>4fb428a4-4f02-11df-9f81-21ac009b4e49</RequestId>
+  </ResponseMetadata>
+</DeleteLoadBalancerResponse>
+ENDXML
+        ));
+        
+        $this->assertTrue($this->_elb->delete('testLoadBalancer'));
     }
     
     /**
@@ -256,7 +367,9 @@ ENDXML
             array('myLb-'),
             array('my#Lb'),
             array('my/Lb'),
-            array('veryveryveryveryveryveryveryverylongname')
+            array('veryveryveryveryveryveryveryverylongname'),
+            array('לואד-בלנסר')
+            
         );
     }
     
@@ -287,6 +400,27 @@ ENDXML
      * Helper functions
      */
 
+    /**
+     * IF on-line tests are enabled, return a configured instance for on-line tests
+     * Otherwise will return null
+     *
+     * @return Zend_Service_Amazon_Ec2_ElasticLB|null
+     */
+    static protected function _getOnLineInstance()
+    {
+        $elb = null;
+        
+        if (self::$_onlineAK && self::$_onlineSK) {
+            $elb = new Zend_Service_Amazon_Ec2_ElasticLB(
+                self::$_onlineAK, self::$_onlineSK, self::$_onlineRegion
+            );
+             
+            $elb->setHttpClient(new Zend_Http_Client());
+        }
+        
+        return $elb;
+    }
+    
     /**
      * Return a valid Listener object
      * 

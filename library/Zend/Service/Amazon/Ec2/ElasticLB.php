@@ -120,18 +120,26 @@ class Zend_Service_Amazon_Ec2_ElasticLB extends Zend_Service_Amazon_Ec2_Abstract
     /**
      * Create a new load balancer
      * 
-     * @param $name
-     * @param $zone
-     * @param $listeners
+     * The returned array will contain one member: 'DNSName' - containing
+     * the public host name of the created load balacner.
+     *  
+     * This action is idempotent - if you try to create a load balancer with
+     * same same name as an existing one (in the same region), it will succeed
+     * but no new load balancer is created. Instead, you will get the DNS name
+     * of the existing LB. 
+     * 
+     * @param string                                           $name
+     * @param string|array                                     $zone
+     * @param Zend_Service_Amazon_Ec2_ElasticLB_Listener|array $listeners
+     * 
+     * @throws Zend_Service_Amazon_Ec2_Exception
+     * @return array
      */
     public function create($name, $zone, $listeners)
     {
         // Validate load balancer name
-        if (! (is_string($name) && 
-               preg_match('/^[\p{L}0-9][\p{L}0-9-]{0,31}$/u', $name) &&
-               (! preg_match('/-$/', $name)))) {
-                   
-            $message = "Invalid load balancer name '$name'";
+        if (! $this->_validateLbName($name)) {                   
+            $message = "Invalid load balancer name: '$name'";
             throw new Zend_Service_Amazon_Ec2_Exception($message);
         }
         
@@ -191,15 +199,74 @@ class Zend_Service_Amazon_Ec2_ElasticLB extends Zend_Service_Amazon_Ec2_Abstract
         }
         
         $response = $this->sendRequest($params);
+        $this->_checkExpectedResponseType($response, 'CreateLoadBalancerResponse');
+        $xpath = $response->getXPath();
+
+        $return = array(
+            'DNSName' => $xpath->evaluate('string(//ec2:DNSName/text())')
+        );
         
-        var_dump($response);
+        return $return;
     }
     
-    public function delete()
+    /**
+     * Delete an existing load balancer
+     * 
+     * @param string $name
+     * 
+     * @throws Zend_Service_Amazon_Ec2_Exception
+     * @return boolean TRUE on success
+     */
+    public function delete($name)
     {
+        // Validate load balancer name
+        if (! $this->_validateLbName($name)) {                   
+            $message = "Invalid load balancer name: '$name'";
+            throw new Zend_Service_Amazon_Ec2_Exception($message);
+        }
         
+        $params = array(
+            'Action'           => 'DeleteLoadBalancer',
+            'LoadBalancerName' => $name
+        );
+        
+        $response = $this->sendRequest($params);
+        $this->_checkExpectedResponseType($response, 'DeleteLoadBalancerResponse');
+        
+        return true;
     }
 
+    /**
+     * Check that a response is of the expected type
+     * 
+     * @param Zend_Service_Amazon_Ec2_ElasticLB_Response $response
+     * @param string                                     $expectedType
+     * 
+     * @throws Zend_Service_Amazon_Ec2_Exception
+     */
+    protected function _checkExpectedResponseType(Zend_Service_Amazon_Ec2_ElasticLB_Response $response, 
+        $expectedType) 
+    {
+        $gotType = $response->getDocument()->documentElement->localName;
+        if ($gotType != $expectedType) {
+            $message = "Unexpected response type: expected '$expectedType', got '$gotType'";
+            throw new Zend_Service_Amazon_Ec2_Exception($message);
+        }
+    }
+    
+    /**
+     * Validate a load balancer name according to the EC2 requirements
+     * 
+     * @param  string $name
+     * @return boolean
+     */
+    protected function _validateLbName($name)
+    {
+        return is_string($name) && 
+               preg_match('/^[\p{L}0-9][\p{L}0-9-]{0,31}$/', $name) &&
+               (! preg_match('/-$/', $name));
+    }
+    
     /**
      * Validate a provided availability zone
      * 
