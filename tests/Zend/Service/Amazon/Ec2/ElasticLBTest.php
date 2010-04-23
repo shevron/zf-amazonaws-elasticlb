@@ -367,6 +367,8 @@ ENDXML
             array('myLb-'),
             array('my#Lb'),
             array('my/Lb'),
+            array('l-'),
+            array('-b'),
             array('veryveryveryveryveryveryveryverylongname'),
             array('לואד-בלנסר')
             
