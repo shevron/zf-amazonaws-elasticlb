@@ -159,9 +159,9 @@ class Zend_Service_Amazon_Ec2_ElasticLB extends Zend_Service_Amazon_Ec2_Abstract
                 $data[] = array(
                     'PolicyNames' => array(),
                     'Listener'    => new Zend_Service_Amazon_Ec2_ElasticLB_Listener(
-                        $xpath->evaluate('number(ec2:Listener/ec2:LoadBalancerPort)', $dataNode),
-                        $xpath->evaluate('number(ec2:Listener/ec2:InstancePort)', $dataNode),
-                        $xpath->evaluate('string(ec2:Listener/ec2:Protocol)', $dataNode)
+                        (int) $xpath->evaluate('string(ec2:Listener/ec2:LoadBalancerPort)', $dataNode),
+                        (int) $xpath->evaluate('string(ec2:Listener/ec2:InstancePort)', $dataNode),
+                              $xpath->evaluate('string(ec2:Listener/ec2:Protocol)', $dataNode)
                     )
                 );
             }

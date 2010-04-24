@@ -118,8 +118,7 @@ class Zend_Service_Amazon_Ec2_ElasticLB_Listener
      */
     public function setLoadBalancerPort($lbPort)
     {
-        $lbPort = (int) $lbPort;
-        if ($lbPort < 1 || $lbPort > 0xffff) {
+        if (! is_int($lbPort) || $lbPort < 1 || $lbPort > 0xffff) {
             $message = "Invalid port: expecting a number between 1 and 65535, got $lbPort";
             require_once 'Zend/Service/Amazon/Ec2/Exception.php';
             throw new Zend_Service_Amazon_Ec2_Exception($message);
@@ -139,8 +138,7 @@ class Zend_Service_Amazon_Ec2_ElasticLB_Listener
      */
     public function setInstancePort($instancePort)
     {
-        $instancePort = (int) $instancePort;
-        if ($instancePort < 1 || $instancePort > 0xffff) {
+        if (! is_int($instancePort) || $instancePort < 1 || $instancePort > 0xffff) {
             $message = "Invalid port: expecting a number between 1 and 65535, got $instancePort";
             require_once 'Zend/Service/Amazon/Ec2/Exception.php';
             throw new Zend_Service_Amazon_Ec2_Exception($message);
