@@ -57,7 +57,7 @@
             <Listener>
               <Protocol>HTTP</Protocol>
               <LoadBalancerPort>80</LoadBalancerPort>
-              <InstancePort>80</InstancePort>
+              <InstancePort>8080</InstancePort>
             </Listener>
           </member>
         </ListenerDescriptions>

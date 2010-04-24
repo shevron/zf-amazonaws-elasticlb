@@ -335,15 +335,178 @@ class Zend_Service_Amazon_Ec2_ElasticLBTest extends PHPUnit_Framework_TestCase
     
     public function testDescribeSingleLoadBalancer()
     {
-        $this->markTestIncomplete();
+        $lbName = 'myLoadBalancer';
+        $this->_adapter->setResponse(self::_createResponseFromFile('response-describe-01.xml'));
+
+        $this->_elb->describe($lbName);
+        
+        $params = self::_getRequestParams($this->_elb->getHttpClient()->getLastRequest());
+        
+        $this->assertArrayHasKey('LoadBalancerNames.member.1', $params);
+        $this->assertEquals($lbName, $params['LoadBalancerNames.member.1']);
     }
     
     public function testDescribeMultipleLoadBalancers()
     {
-        $this->markTestIncomplete();
+        $lbNames = array('myLoadBalancer', 'anotherLoadBalancer', '3rdLb');
+        $this->_adapter->setResponse(self::_createResponseFromFile('response-describe-01.xml'));
+
+        $this->_elb->describe($lbNames);
+        
+        $params = self::_getRequestParams($this->_elb->getHttpClient()->getLastRequest());
+        
+        foreach($lbNames as $k => $name) {
+            $key = 'LoadBalancerNames.member.' . ($k + 1);
+            $this->assertArrayHasKey($key, $params);
+            $this->assertEquals($name, $params[$key]);
+        }
     }
     
+    /**
+     * Check that the response contains an array for each LB with the right keys
+     * 
+     */
     public function testDescribeWithMultipleLoadBalancers()
+    {
+        $this->_adapter->setResponse(self::_createResponseFromFile('response-describe-01.xml'));
+        $keys = array(
+            'LoadBalancerName', 'AvailabilityZones', 'CreatedTime', 'DNSName', 
+            'Instances', 'HealthCheck', 'ListenerDescriptions', 'Policies'
+        );
+        
+        $response = $this->_elb->describe();
+        
+        // Check we have 2 load balancers describe
+        $this->assertEquals(2, count($response));
+        foreach($response as $lbDesc) {
+            foreach($keys as $key) {
+                $this->assertArrayHasKey($key, $lbDesc);
+            }
+        }
+    }
+    
+    public function checkDescribeReturnsCorrectStringParams()
+    {
+        $this->_adapter->setResponse(self::_createResponseFromFile('response-describe-01.xml'));
+        $lbs = array(
+            'my-load-balancer' => array(
+                'LoadBalancerName' => 'my-load-balancer',
+                'CreatedTime'      => '2010-04-24T11:17:46.240Z',
+                'DNSName'          => 'my-load-balancer-328577524.eu-west-1.elb.amazonaws.com',
+            ),
+            'myLoadBalancer'   => array(
+                'LoadBalancerName' => 'myLoadBalancer',
+                'CreatedTime'      => '2010-04-24T11:07:34.040Z',
+                'DNSName'          => 'myLoadBalancer-1547734986.eu-west-1.elb.amazonaws.com',
+            )
+        );
+        
+        $response = $this->_elb->describe();
+        
+        // Check we have 2 load balancers describe
+        foreach($response as $key => $lbDesc) {
+            $this->assertArrayHasKey($key, $lbs);
+            foreach($lbs[$key] as $param => $value) {
+                $this->assertEquals($value, $lbDesc[$param]);
+            }
+        }
+    }
+    
+    public function testDescribeReturnsCorrectAvailabilityZones()
+    {
+        $this->_adapter->setResponse(self::_createResponseFromFile('response-describe-01.xml'));
+        $lbs = array(
+            'my-load-balancer' => array('eu-west-1a'),
+            'myLoadBalancer'   => array('eu-west-1a', 'eu-west-1b')
+        );
+        
+        $response = $this->_elb->describe();
+        
+        // Check we have 2 load balancers describe
+        foreach($response as $key => $lbDesc) {
+            $this->assertArrayHasKey($key, $lbs);
+            $this->assertEquals($lbs[$key], $lbDesc['AvailabilityZones']);
+        }
+    }
+    
+    public function testDescribeReturnsCorrectInstances()
+    {
+        $this->_adapter->setResponse(self::_createResponseFromFile('response-describe-01.xml'));
+        $lbs = array(
+            'my-load-balancer' => array(),
+            'myLoadBalancer'   => array('i-1053ec67', 'i-2e53ec59')
+        );
+        
+        $response = $this->_elb->describe();
+        
+        // Check we have 2 load balancers describe
+        foreach($response as $key => $lbDesc) {
+            $this->assertArrayHasKey($key, $lbs);
+            $this->assertEquals($lbs[$key], $lbDesc['Instances']);
+        }
+    }
+    
+    public function testDescribeReturnsCorrectHealthInfo()
+    {
+        $this->_adapter->setResponse(self::_createResponseFromFile('response-describe-01.xml'));
+        $lbs = array(
+            'my-load-balancer' => array(
+                'Interval'           => 30,
+                'Target'             => 'TCP:443',
+                'HealthyThreshold'   => 5,
+                'Timeout'            => 5,
+                'UnhealthyThreshold' => 3
+            ),
+            'myLoadBalancer'   => array(
+                'Interval'           => 30,
+                'Target'             => 'TCP:80',
+                'HealthyThreshold'   => 10,
+                'Timeout'            => 5,
+                'UnhealthyThreshold' => 2
+            )
+        );
+        
+        $response = $this->_elb->describe();
+        
+        // Check we have 2 load balancers describe
+        foreach($response as $key => $lbDesc) {
+            $this->assertArrayHasKey($key, $lbs);
+            $this->assertEquals($lbs[$key], $lbDesc['HealthCheck']);
+        }
+    }
+    
+    public function testDescribeReturnsCorrectListenerDescriptionNoPolicy()
+    {
+        $this->_adapter->setResponse(self::_createResponseFromFile('response-describe-01.xml'));
+        $lbs = array(
+            'my-load-balancer' => array(
+                array(
+                    'PolicyNames' => array(),
+                    'Listener'    => new Zend_Service_Amazon_Ec2_ElasticLB_Listener(80, 80, 'HTTP')
+                ),
+                array(
+                    'PolicyNames' => array(),
+                    'Listener'    => new Zend_Service_Amazon_Ec2_ElasticLB_Listener(443, 443, 'TCP')
+                )
+            ),
+            'myLoadBalancer'   => array(
+                array(
+                    'PolicyNames' => array(),
+                    'Listener'    => new Zend_Service_Amazon_Ec2_ElasticLB_Listener(80, 8080, 'HTTP')
+                )
+            )
+        );
+        
+        $response = $this->_elb->describe();
+        
+        // Check we have 2 load balancers describe
+        foreach($response as $key => $lbDesc) {
+            $this->assertArrayHasKey($key, $lbs);
+            $this->assertEquals($lbs[$key], $lbDesc['ListenerDescriptions']);
+        }
+    }
+    
+    public function testDescribeReturnsCorrectListenerDescriptionWithPolicy()
     {
         $this->markTestIncomplete();
     }
@@ -462,7 +625,8 @@ class Zend_Service_Amazon_Ec2_ElasticLBTest extends PHPUnit_Framework_TestCase
             array(
                 self::_createResponseFromFile('errorresponse-01.xml'),
                 "SignatureDoesNotMatch",
-                "The request signature we calculated does not match the signature you provided. Check your AWS Secret Access Key and signing method. Consult the service documentation for details."
+                "The request signature we calculated does not match the signature you provided. " . 
+                    "Check your AWS Secret Access Key and signing method. Consult the service documentation for details."
             )
         );
     }
@@ -480,7 +644,15 @@ class Zend_Service_Amazon_Ec2_ElasticLBTest extends PHPUnit_Framework_TestCase
     static protected function _getRequestParams($request)
     {
         list($headers, $body) = explode("\r\n\r\n", $request, 2);
-        parse_str(trim($body), $params);
+        
+        // parse_str replaces '.' with '_', so we will implement our own 
+        // x-form-urlencoded parsing code 
+        $params = array();
+        $pairs = explode('&', $body);
+        foreach($pairs as $pair) {
+            list($key, $value) = explode('=', $pair);
+            $params[urldecode($key)] = urldecode($value);
+        }
         
         return $params;
     }

@@ -114,21 +114,64 @@ class Zend_Service_Amazon_Ec2_ElasticLB extends Zend_Service_Amazon_Ec2_Abstract
         }
         
         $response = $this->sendRequest($params);
-
-        $xpath = $response->getXPath();
-
-        $return = array(
-        );
+        $this->_checkExpectedResponseType($response, 'DescribeLoadBalancersResponse');
         
-        /*
-        TODO: Implement me!
-         
-        $return['snapshotId']   = $xpath->evaluate('string(//ec2:snapshotId/text())');
-        $return['volumeId']     = $xpath->evaluate('string(//ec2:volumeId/text())');
-        $return['status']       = $xpath->evaluate('string(//ec2:status/text())');
-        $return['startTime']    = $xpath->evaluate('string(//ec2:startTime/text())');
-        $return['progress']     = $xpath->evaluate('string(//ec2:progress/text())');
-        */
+        $xpath = $response->getXPath();
+        $return = array();
+        $lbDescriptions = $xpath->evaluate('//ec2:LoadBalancerDescriptions/ec2:member');
+        
+        // Iterate over all returned load balancers
+        foreach($lbDescriptions as $lbDescNode) {
+            
+            // Extract basic parameters
+            $lbDesc = array(
+                'LoadBalancerName' => $xpath->evaluate('string(ec2:LoadBalancerName/text())', $lbDescNode),  
+                'CreatedTime'      => $xpath->evaluate('string(ec2:CreatedTime/text())', $lbDescNode),
+                'DNSName'          => $xpath->evaluate('string(ec2:DNSName/text())', $lbDescNode),
+            );
+            
+            // Extract availability zones
+            $data = array();
+            foreach($xpath->evaluate('ec2:AvailabilityZones/ec2:member', $lbDescNode) as $dataNode) {
+                $data[] = $dataNode->nodeValue;
+            }
+            $lbDesc['AvailabilityZones'] = $data;
+             
+            // Extract instances
+            $data = array();
+            foreach($xpath->evaluate('ec2:Instances/ec2:member/ec2:InstanceId', $lbDescNode) as $dataNode) {
+                $data[] = $dataNode->nodeValue;
+            }
+            $lbDesc['Instances'] = $data;
+            
+            // Extract health check info
+            $lbDesc['HealthCheck'] = array(
+                'Interval'           => (int) $xpath->evaluate('string(ec2:HealthCheck/ec2:Interval)', $lbDescNode),
+                'Target'             => $xpath->evaluate('string(ec2:HealthCheck/ec2:Target)', $lbDescNode),
+                'HealthyThreshold'   => (int) $xpath->evaluate('string(ec2:HealthCheck/ec2:HealthyThreshold)', $lbDescNode),
+                'Timeout'            => (int) $xpath->evaluate('string(ec2:HealthCheck/ec2:Timeout)', $lbDescNode),
+                'UnhealthyThreshold' => (int) $xpath->evaluate('string(ec2:HealthCheck/ec2:UnhealthyThreshold)', $lbDescNode),
+            );
+            
+            // Extract listener desciprion
+            $data = array();
+            foreach($xpath->evaluate('ec2:ListenerDescriptions/ec2:member', $lbDescNode) as $dataNode) {
+                $data[] = array(
+                    'PolicyNames' => array(),
+                    'Listener'    => new Zend_Service_Amazon_Ec2_ElasticLB_Listener(
+                        $xpath->evaluate('number(ec2:Listener/ec2:LoadBalancerPort)', $dataNode),
+                        $xpath->evaluate('number(ec2:Listener/ec2:InstancePort)', $dataNode),
+                        $xpath->evaluate('string(ec2:Listener/ec2:Protocol)', $dataNode)
+                    )
+                );
+            }
+            $lbDesc['ListenerDescriptions'] = $data;
+            
+            // FIXME: Implement Policies extraction
+            $lbDesc['Policies'] = array();
+                
+            $return[$lbDesc['LoadBalancerName']] = $lbDesc;
+        }
         
         return $return;
     }
