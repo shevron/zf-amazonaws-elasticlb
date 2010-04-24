@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CreateLoadBalancerResponse xmlns="http://elasticloadbalancing.amazonaws.com/doc/2009-11-25/">
+  <CreateLoadBalancerResult>
+    <DNSName>testLoadBalancer-1962097299.eu-west-1.elb.amazonaws.com</DNSName>
+  </CreateLoadBalancerResult>
+  <ResponseMetadata>
+    <RequestId>7cfd29f0-4efe-11df-9f81-21ac009b4e49</RequestId>
+  </ResponseMetadata>
+</CreateLoadBalancerResponse>

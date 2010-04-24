@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ErrorResponse xmlns="http://elasticloadbalancing.amazonaws.com/doc/2009-11-25/">
+  <Error>
+    <Type>Sender</Type>
+    <Code>SignatureDoesNotMatch</Code>
+    <Message>The request signature we calculated does not match the signature you provided. Check your AWS Secret Access Key and signing method. Consult the service documentation for details.</Message>
+  </Error>
+  <RequestId>cc77e3f2-4ecf-11df-9f81-21ac009b4e49</RequestId>
+</ErrorResponse>

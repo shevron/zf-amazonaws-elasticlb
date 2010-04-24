@@ -89,27 +89,38 @@ class Zend_Service_Amazon_Ec2_ElasticLB extends Zend_Service_Amazon_Ec2_Abstract
             'Action' => 'DescribeLoadBalancers'
         );
         
-        if (is_array($lbnames)) {
+        // Validate and set instance(s)
+        $invalid = false;
+        if (is_array($lbnames) && ! empty($lbnames)) {
             $i = 1;
             foreach($lbnames as $name) {
+                if (! $this->_validateLbName($name)) {
+                    $invalid = true;
+                    break;
+                }
                 $params['LoadBalancerNames.member.' . $i++] = $name;
             }
-            
-        } elseif ($lbnames) {
-            $params['LoadBalancerNames.member.1'] = (string) $lbnames;
-        }
+        } elseif (is_string($lbnames) && $this->_validateLbName($lbnames)) {
+            $params['LoadBalancerNames.member.1'] = $lbnames;
 
+        } elseif ($lbnames !== null) {
+            $invalid = true;
+        }
+        
+        if ($invalid) {
+            if (isset($name)) $lbnames = $name;
+            $message = "Invalid load balancer name: '$lbnames'";
+            throw new Zend_Service_Amazon_Ec2_Exception($message);
+        }
+        
         $response = $this->sendRequest($params);
 
         $xpath = $response->getXPath();
 
-        var_dump($response);
-        
         $return = array(
         );
         
         /*
-         
         TODO: Implement me!
          
         $return['snapshotId']   = $xpath->evaluate('string(//ec2:snapshotId/text())');

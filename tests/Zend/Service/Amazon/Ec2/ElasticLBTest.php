@@ -205,27 +205,20 @@ class Zend_Service_Amazon_Ec2_ElasticLBTest extends PHPUnit_Framework_TestCase
      */
     public function testCreateLoadBalancerValidInput($name, $zone, $listener)
     {
-        $this->_adapter->setResponse($this->_createFakeResponse(
-<<<ENDXML
-<CreateLoadBalancerResponse xmlns="http://elasticloadbalancing.amazonaws.com/doc/2009-11-25/">
-  <CreateLoadBalancerResult>
-    <DNSName>testLoadBalancer-1962097299.eu-west-1.elb.amazonaws.com</DNSName>
-  </CreateLoadBalancerResult>
-  <ResponseMetadata>
-    <RequestId>7cfd29f0-4efe-11df-9f81-21ac009b4e49</RequestId>
-  </ResponseMetadata>
-</CreateLoadBalancerResponse>
-ENDXML
-        ));
+        $this->_adapter->setResponse(self::_createResponseFromFile('response-create-01.xml'));
+        
         try {
             $this->_elb->create($name, $zone, $listener);
         } catch (Zend_Service_Amazon_Ec2_Exception $ex) {
             $this->fail("Unexpected exception: $ex");
         }
         
-        $request = $this->_elb->getHttpClient()->getLastRequest();
-        $this->assertContains('Action=CreateLoadBalancer', $request);
-        $this->assertContains('LoadBalancerName=' . urlencode($name), $request);
+        $params = self::_getRequestParams($this->_elb->getHttpClient()->getLastRequest());
+        
+        $this->assertArrayHasKey('Action', $params);
+        $this->assertEquals('CreateLoadBalancer', $params['Action']);
+        $this->assertArrayHasKey('LoadBalancerName', $params);
+        $this->assertEquals($name, $params['LoadBalancerName']);
     }
     
     /**
@@ -235,38 +228,14 @@ ENDXML
      */
     public function testCreateLoadBalancerInvalidResponse()
     {
-        $this->_adapter->setResponse($this->_createFakeResponse(
-<<<ENDXML
-<DeleteLoadBalancerResponse xmlns="http://elasticloadbalancing.amazonaws.com/doc/2009-11-25/">
-  <CreateLoadBalancerResult>
-    <DNSName>lbj-1962097299.eu-west-1.elb.amazonaws.com</DNSName>
-  </CreateLoadBalancerResult>
-  <ResponseMetadata>
-    <RequestId>7cfd29f0-4efe-11df-9f81-21ac009b4e49</RequestId>
-  </ResponseMetadata>
-</DeleteLoadBalancerResponse>
-ENDXML
-        ));
-        
+        $this->_adapter->setResponse(self::_createResponseFromFile('response-delete-01.xml'));
         $response = $this->_elb->create('lbj', 'us-east-1a', self::_getValidListener());
     }
     
     public function testCreateLoadBalancerValidResponse()
     {
-        $name = 'validLbName';
-        
-        $this->_adapter->setResponse($this->_createFakeResponse(
-<<<ENDXML
-<CreateLoadBalancerResponse xmlns="http://elasticloadbalancing.amazonaws.com/doc/2009-11-25/">
-  <CreateLoadBalancerResult>
-    <DNSName>$name-1962097299.eu-west-1.elb.amazonaws.com</DNSName>
-  </CreateLoadBalancerResult>
-  <ResponseMetadata>
-    <RequestId>7cfd29f0-4efe-11df-9f81-21ac009b4e49</RequestId>
-  </ResponseMetadata>
-</CreateLoadBalancerResponse>
-ENDXML
-        ));
+        $name = 'testLoadBalancer';        
+        $this->_adapter->setResponse(self::_createResponseFromFile('response-create-01.xml'));
         
         $response = $this->_elb->create($name, 'us-east-1a', self::_getValidListener());
         
@@ -291,18 +260,7 @@ ENDXML
     
     public function testDeleteLoadBalancer()
     {
-        $this->_adapter->setResponse(self::_createFakeResponse(
-<<<ENDXML
-<?xml version="1.0"?>
-<DeleteLoadBalancerResponse xmlns="http://elasticloadbalancing.amazonaws.com/doc/2009-11-25/">
-  <DeleteLoadBalancerResult/>
-  <ResponseMetadata>
-    <RequestId>4fb428a4-4f02-11df-9f81-21ac009b4e49</RequestId>
-  </ResponseMetadata>
-</DeleteLoadBalancerResponse>
-ENDXML
-        ));
-        
+        $this->_adapter->setResponse(self::_createResponseFromFile("response-delete-01.xml"));
         $this->assertTrue($this->_elb->delete('testLoadBalancer'));
     }
     
@@ -337,32 +295,69 @@ ENDXML
     public function testRegisterInstancesReturnsInstaceIds()
     {
         $instanceIds = array('i-a2b10ed5', 'i-a0b10ed7');
-        
-        $this->_adapter->setResponse($this->_createFakeResponse(
-<<<ENDXML
-<?xml version="1.0"?>
-<RegisterInstancesWithLoadBalancerResponse xmlns="http://elasticloadbalancing.amazonaws.com/doc/2009-11-25/">
-  <RegisterInstancesWithLoadBalancerResult>
-    <Instances>
-      <member>
-        <InstanceId>i-a2b10ed5</InstanceId>
-      </member>
-      <member>
-        <InstanceId>i-a0b10ed7</InstanceId>
-      </member>
-    </Instances>
-  </RegisterInstancesWithLoadBalancerResult>
-  <ResponseMetadata>
-    <RequestId>6e1504da-4f0b-11df-9f81-21ac009b4e49</RequestId>
-  </ResponseMetadata>
-</RegisterInstancesWithLoadBalancerResponse>
-ENDXML
-        ));
+        $this->_adapter->setResponse(self::_createResponseFromFile('response-registerinstance-01.xml'));
         
         $result = $this->_elb->registerInstances('myLb', $instanceIds);
         
         $this->assertEquals(array('Instances' => $instanceIds), $result);
     }
+    
+    /**
+     * describe() method tests
+     */
+
+    /**
+     * Test that an exception is thrown if invalid name is passed here
+     * 
+     * @param string|array $name
+     * @dataProvider invalidNamesForDescribeProvider
+     * @expectedException Zend_Service_Amazon_Ec2_Exception
+     */
+    public function testDescribeInvalidLoadBalancerNames($name)
+    {
+        $this->_elb->describe($name);
+    }
+    
+    /**
+     * Check that the describe request is sent with no load balancer names if 
+     * no names are provided
+     * 
+     */
+    public function testDescribeNoLoadBalancers()
+    {
+        $this->_adapter->setResponse(self::_createResponseFromFile('response-describe-01.xml'));
+        $this->_elb->describe();
+        
+        $params = self::_getRequestParams($this->_elb->getHttpClient()->getLastRequest());
+        
+        $this->assertArrayNotHasKey('LoadBalancerNames.member.1', $params);
+    }
+    
+    public function testDescribeSingleLoadBalancer()
+    {
+        $this->markTestIncomplete();
+    }
+    
+    public function testDescribeMultipleLoadBalancers()
+    {
+        $this->markTestIncomplete();
+    }
+    
+    public function testDescribeWithMultipleLoadBalancers()
+    {
+        $this->markTestIncomplete();
+    }
+    
+    public function testDescribeWithAppCookiePolicy()
+    {
+        $this->markTestIncomplete();
+    }
+    
+    public function testDescribeWithLBCookiePolicy()
+    {
+        $this->markTestIncomplete();
+    }
+    
     
     /**
      * Data Providers
@@ -444,23 +439,28 @@ ENDXML
         );
     }
     
+    static public function invalidNamesForDescribeProvider()
+    {
+        $data = self::invalidNameProvider();
+        foreach($data as $k => $v) {
+            if (! is_string($v[0])) unset($data[$k]);
+        }
+        
+        $moreData = array(
+            array(false),
+            array(array('goodName', 'bad name')),
+            array(array()),
+            array(array('mylb-'))
+        );
+        
+        return array_merge($data, $moreData); 
+    }
+    
     static public function errorResponseProvider()
     {
         return array(
             array(
-                self::_createFakeResponse(
-<<<ENDXML
-<ErrorResponse xmlns="http://elasticloadbalancing.amazonaws.com/doc/2009-11-25/">
-  <Error>
-    <Type>Sender</Type>
-    <Code>SignatureDoesNotMatch</Code>
-    <Message>The request signature we calculated does not match the signature you provided. Check your AWS Secret Access Key and signing method. Consult the service documentation for details.</Message>
-  </Error>
-  <RequestId>cc77e3f2-4ecf-11df-9f81-21ac009b4e49</RequestId>
-</ErrorResponse>
-
-ENDXML
-                ), 
+                self::_createResponseFromFile('errorresponse-01.xml'),
                 "SignatureDoesNotMatch",
                 "The request signature we calculated does not match the signature you provided. Check your AWS Secret Access Key and signing method. Consult the service documentation for details."
             )
@@ -472,7 +472,21 @@ ENDXML
      */
 
     /**
-     * IF on-line tests are enabled, return a configured instance for on-line tests
+     * Extract the array of POST parameters from an HTTP request and return it
+     * 
+     * @param   string $request HTTP request
+     * @returns array
+     */
+    static protected function _getRequestParams($request)
+    {
+        list($headers, $body) = explode("\r\n\r\n", $request, 2);
+        parse_str(trim($body), $params);
+        
+        return $params;
+    }
+    
+    /**
+     * If on-line tests are enabled, return a configured instance for on-line tests
      * Otherwise will return null
      *
      * @return Zend_Service_Amazon_Ec2_ElasticLB|null
@@ -508,7 +522,7 @@ ENDXML
      * @param  string $body
      * @return string
      */
-    static protected function _createFakeResponse($body)
+    static protected function _createResponse($body)
     {
         $response = "HTTP/1.1 200 OK\r\n" . 
                     "Date: " . date(DATE_RFC822) . "\r\n" . 
@@ -519,5 +533,30 @@ ENDXML
                     $body;
                     
         return $response;
+    }
+    
+    /**
+     * Create a fake Amazon EC2 HTTP response from file contents
+     * 
+     * @param  string $file
+     * @return string
+     */
+    static protected function _createResponseFromFile($file)
+    {
+        return self::_createResponse(self::_getTestFile($file));
+    }
+    
+    /**
+     * Get the contents of one of the files under _files
+     * 
+     * @param  string $file
+     * @return string File content
+     */
+    static protected function _getTestFile($file)
+    {
+        $file = dirname(__FILE__) . DIRECTORY_SEPARATOR . '_files' . 
+                                    DIRECTORY_SEPARATOR . $file;
+
+        return file_get_contents($file);
     }
 }
