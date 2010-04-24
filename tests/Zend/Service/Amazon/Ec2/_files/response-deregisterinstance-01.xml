@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<DeregisterInstancesFromLoadBalancerResponse xmlns="http://elasticloadbalancing.amazonaws.com/doc/2009-11-25/">
+  <DeregisterInstancesFromLoadBalancerResult>
+    <Instances>
+      <member>
+        <InstanceId>i-a2b10ed5</InstanceId>
+      </member>
+      <member>
+        <InstanceId>i-a0b10ed7</InstanceId>
+      </member>
+    </Instances>
+  </DeregisterInstancesFromLoadBalancerResult>
+  <ResponseMetadata>
+    <RequestId>6e1504da-4f0b-11df-9f81-21ac009b4e49</RequestId>
+  </ResponseMetadata>
+</DeregisterInstancesFromLoadBalancerResponse>

@@ -83,6 +83,20 @@ class Zend_Service_Amazon_Ec2_ElasticLB extends Zend_Service_Amazon_Ec2_Abstract
         }
     }
     
+    /**
+     * Get information about one, a set of or all running load balancers
+     *  
+     * This method may be called with a single load balancer name passed in as
+     * a string, or a set or load balancer names passed as an array of strings. 
+     * In both cases, information about the requested load balancers will be 
+     * returned as an array.
+     * 
+     * If no parameter is passed, information will be returned on all running
+     * load balancers owned by the user in the current EC2 region.
+     * 
+     * @param  null|string|array $lbnames
+     * @return array 
+     */
     public function describe($lbnames = null)
     {
         $params = array(
@@ -295,7 +309,64 @@ class Zend_Service_Amazon_Ec2_ElasticLB extends Zend_Service_Amazon_Ec2_Abstract
         return true;
     }
     
+    /**
+     * Register one or more EC2 machine instances with a load balancer
+     * 
+     * This method accepts one Instance ID as a string or multiple instance IDs
+     * as an array of strings. 
+     * 
+     * The list of machines registered with the load balancer will be returned.
+     * 
+     * @param  string       $name      Load balancer name
+     * @param  string|array $instances Instance ID(s) to register
+     * @return array
+     */
     public function registerInstances($name, $instances)
+    {
+        return $this->_doRegDeregInstancesCall(
+            'RegisterInstancesWithLoadBalancer',
+            'RegisterInstancesWithLoadBalancerResponse',
+            $name,
+            $instances
+        );
+    }
+
+    /**
+     * Remove one or more EC2 machine instances from a load balancer pool
+     * 
+     * This method accepts one Instance ID as a string or multiple instance IDs
+     * as an array of strings. 
+     * 
+     * The list of machines registered with the load balancer will be returned.
+     * 
+     * @param  string       $name      Load balancer name
+     * @param  string|array $instances Instance ID(s) to register
+     * @return array
+     */
+    public function deregisterInstances($name, $instances)
+    {
+        return $this->_doRegDeregInstancesCall(
+            'DeregisterInstancesFromLoadBalancer',
+            'DeregisterInstancesFromLoadBalancerResponse',
+            $name,
+            $instances
+        );
+    }
+    
+    /**
+     * Execute a registerInstances or deregisterInstances API call
+     * 
+     * This method is here to avoid code duplication, given that both method 
+     * calls take very similar parameters, and return a very similar response
+     * 
+     * @param  string       $action      Action name
+     * @param  string       $expResponse Expeected response type
+     * @param  string       $name        Load balancer name
+     * @param  string|array $instances   Instance ID(s) to register
+     * @throws Zend_Service_Amazon_Ec2_Exception
+     * @return array
+     */
+    private function _doRegDeregInstancesCall($action, $expResponse, $name, $instances)
     {
         // Validate load balancer name
         if (! $this->_validateLbName($name)) {                   
@@ -304,7 +375,7 @@ class Zend_Service_Amazon_Ec2_ElasticLB extends Zend_Service_Amazon_Ec2_Abstract
         }
         
         $params = array(
-            'Action'           => 'RegisterInstancesWithLoadBalancer',
+            'Action'           => $action,
             'LoadBalancerName' => $name
         );
         
@@ -333,8 +404,7 @@ class Zend_Service_Amazon_Ec2_ElasticLB extends Zend_Service_Amazon_Ec2_Abstract
         }
         
         $response = $this->sendRequest($params);
-        $this->_checkExpectedResponseType($response, 
-            'RegisterInstancesWithLoadBalancerResponse');
+        $this->_checkExpectedResponseType($response, $expResponse);
         
         $return = array(
             'Instances' => array()
@@ -348,7 +418,7 @@ class Zend_Service_Amazon_Ec2_ElasticLB extends Zend_Service_Amazon_Ec2_Abstract
         
         return $return;
     }
-
+    
     /**
      * Check that a response is of the expected type
      * 

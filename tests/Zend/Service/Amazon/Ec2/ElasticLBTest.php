@@ -261,8 +261,13 @@ class Zend_Service_Amazon_Ec2_ElasticLBTest extends PHPUnit_Framework_TestCase
     
     public function testDeleteLoadBalancer()
     {
+        $name = 'testLoadBalancer';
         $this->_adapter->setResponse(self::_createResponseFromFile("response-delete-01.xml"));
-        $this->assertTrue($this->_elb->delete('testLoadBalancer'));
+        $this->assertTrue($this->_elb->delete($name));
+        
+        $params = self::_getRequestParams($this->_elb->getHttpClient()->getLastRequest());
+        $this->assertEquals('DeleteLoadBalancer', $params['Action']);
+        $this->assertEquals($name, $params['LoadBalancerName']);
     }
     
     /**
@@ -299,6 +304,62 @@ class Zend_Service_Amazon_Ec2_ElasticLBTest extends PHPUnit_Framework_TestCase
         $this->_adapter->setResponse(self::_createResponseFromFile('response-registerinstance-01.xml'));
         
         $result = $this->_elb->registerInstances('myLb', $instanceIds);
+        
+        $this->assertEquals(array('Instances' => $instanceIds), $result);
+    }
+    
+    /**
+     * deregisterInstance tests
+     */
+    
+    /**
+     * Test that an exception is thrown if invalid name is passed here
+     * 
+     * @param string $name
+     * @dataProvider invalidNameProvider
+     * @expectedException Zend_Service_Amazon_Ec2_Exception
+     */
+    public function testDeregisterInstancesInvalidName($name)
+    {
+        $this->_elb->deregisterInstances($name, 'i-a12345');        
+    }
+    
+    /**
+     * Test that an exception is thrown if invalid instance ID is passed
+     * 
+     * @param string $instanceId
+     * @dataProvider invalidInstanceIdProvider
+     * @expectedException Zend_Service_Amazon_Ec2_Exception
+     */
+    public function testDeregisterInstancesInvalidInstanceId($instanceId)
+    {
+        $this->_elb->deregisterInstances('mylb', $instanceId);        
+    }
+    
+    public function testDeregisterInstancesProperParams()
+    {
+        $instanceIds = array('i-a2b10ed5', 'i-a0b10ed7');
+        $name = 'myLb';
+        
+        $this->_adapter->setResponse(self::_createResponseFromFile('response-deregisterinstance-01.xml'));
+        $this->_elb->deregisterInstances($name, $instanceIds);
+        $params = self::_getRequestParams($this->_elb->getHttpClient()->getLastRequest());
+        
+        $this->assertEquals('DeregisterInstancesFromLoadBalancer', $params['Action']);
+        $this->assertEquals($name, $params['LoadBalancerName']);
+        foreach($instanceIds as $i => $instId) {
+            $key = 'Instances.member.' . ++$i . '.InstanceId';
+            $this->assertArrayHasKey($key, $params);
+            $this->assertEquals($instId, $params[$key]);
+        }
+    }
+    
+    public function testDeregisterInstancesReturnsInstaceIds()
+    {
+        $instanceIds = array('i-a2b10ed5', 'i-a0b10ed7');
+        $this->_adapter->setResponse(self::_createResponseFromFile('response-deregisterinstance-01.xml'));
+        
+        $result = $this->_elb->deregisterInstances('myLb', $instanceIds);
         
         $this->assertEquals(array('Instances' => $instanceIds), $result);
     }
