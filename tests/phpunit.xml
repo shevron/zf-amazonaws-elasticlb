@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit>
+    <testsuites>
+      <testsuite name="Zend_Service_Amazon_Ec2_ElasticLB">
+        <file>Zend/Service/Amazon/Ec2/ElasticLBTest.php</file>
+        <directory>Zend/Service/Amazon/Ec2/ElasticLB/</directory>
+      </testsuite>
+    </testsuites>
+</phpunit>
