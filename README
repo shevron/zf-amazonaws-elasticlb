@@ -30,6 +30,9 @@ Currently Implemented Methods:
 - registerInstances
     Register machine instances with a load balancer
 
+- deregisterInstances
+    Remove machine instances from a load balancer
+
 Work In Progress:
 -----------------
 - describe
@@ -41,7 +44,6 @@ The following are API commands still not implemented. Note that when (if) they
 are implemented, they might be assigned shorter PHP method names:
 
 - configureHealthCheck
-- deregisterInstances
 - describeInstanceHealth
 - disableAvailabilityZone
 - enableAvailabilityZone
