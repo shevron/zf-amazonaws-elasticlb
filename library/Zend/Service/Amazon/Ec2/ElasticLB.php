@@ -322,7 +322,7 @@ class Zend_Service_Amazon_Ec2_ElasticLB extends Zend_Service_Amazon_Ec2_Abstract
     protected function _validateLbName($name)
     {
         return is_string($name) && 
-               preg_match('/^[\p{L}0-9](?:[\p{L}0-9-]{0,30}[\p{L}0-9])?$/', $name);
+               preg_match('/^[\p{L}0-9][\p{L}0-9-]{0,31}$(?<!-)/', $name);
     }
     
     /**
