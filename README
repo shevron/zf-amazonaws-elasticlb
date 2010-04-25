@@ -33,6 +33,12 @@ Currently Implemented Methods:
 - deregisterInstances
     Remove machine instances from a load balancer
 
+- enableAvailabilityZones
+    Enable availability zones for load balancer
+    
+- disableAvailabilityZones
+    Disable availability zones for load balancer
+    
 Work In Progress:
 -----------------
 - describe
@@ -45,10 +51,7 @@ are implemented, they might be assigned shorter PHP method names:
 
 - configureHealthCheck
 - describeInstanceHealth
-- disableAvailabilityZone
-- enableAvailabilityZone
 - createAppCookieStickinessPolicy
 - createLBCookieStickinessPolicy
 - setLoadBalancerPoliciesOfListener
 - deleteLoadBalancerPolicy
-
