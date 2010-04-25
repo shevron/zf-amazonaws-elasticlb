@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<EnableAvailabilityZonesForLoadBalancerResponse xmlns="http://elasticloadbalancing.amazonaws.com/doc/2009-11-25/">
+    <EnableAvailabilityZonesForLoadBalancerResult>
+        <AvailabilityZones>
+            <member>us-east-1c</member>
+            <member>us-east-1b</member>
+            <member>us-east-1a</member>
+        </AvailabilityZones>
+    </EnableAvailabilityZonesForLoadBalancerResult>
+</EnableAvailabilityZonesForLoadBalancerResponse>

@@ -354,6 +354,112 @@ class Zend_Service_Amazon_Ec2_ElasticLB extends Zend_Service_Amazon_Ec2_Abstract
     }
     
     /**
+     * Enable one or more availability zones for a load balancer
+     * 
+     * All zones must be in the same region as the load balancer. 
+     * 
+     * Will return the new list of zones enabled for the load balancer.
+     * 
+     * @param  string       $name
+     * @param  string|array $zones
+     * @return array
+     */
+    public function enableAvailabilityZones($name, $zones)
+    {
+        return $this->_doEnableDisableZones(
+            'EnableAvailabilityZonesForLoadBalancer',
+            'EnableAvailabilityZonesForLoadBalancerResponse',
+            $name,
+            $zones
+        );
+    }
+    
+    /**
+     * Disable one or more availability zones for a load balancer
+     * 
+     * All zones must be in the same region as the load balancer. 
+     * 
+     * Will return the list of zones still enabled for the load balancer.
+     * 
+     * @param  string       $name
+     * @param  string|array $zones
+     * @return array
+     */
+    public function disableAvailabilityZones($name, $zones)
+    {
+        return $this->_doEnableDisableZones(
+            'DisableAvailabilityZonesForLoadBalancer',
+            'DisableAvailabilityZonesForLoadBalancerResponse',
+            $name,
+            $zones
+        );
+    }
+    
+    /**
+     * Execute an enableAvailabilityZones or disableAvailabilityZones API call
+     * 
+     * This method is here to avoid code duplication, since both method calls 
+     * take very similar parameters, and return a very similar response
+     * 
+     * @param  string       $action
+     * @param  string       $expResponse
+     * @param  string       $name
+     * @param  string|array $zones
+     * @return array
+     */
+    private function _doEnableDisableZones($action, $expResponse, $name, $zones)
+    {
+        // Validate load balancer name
+        if (! $this->_validateLbName($name)) {                   
+            $message = "Invalid load balancer name: '$name'";
+            throw new Zend_Service_Amazon_Ec2_Exception($message);
+        }
+        
+        $params = array(
+            'Action'           => $action,
+            'LoadBalancerName' => $name
+        );
+        
+        // Validate and set availability zone(s)
+        $invalid = false;
+        if (is_array($zones) && ! empty($zones)) {
+            $i = 1;
+            foreach($zones as $az) {
+                if (! $this->_validateZone($az)) {
+                    $invalid = true;
+                    break;
+                }
+                $params['AvailabilityZones.member.' . $i++] = $az;
+            }
+        } elseif (is_string($zones)) {
+            if ($this->_validateZone($zones)) {
+                $params['AvailabilityZones.member.1'] = $zones;    
+            } else {
+                $invalid = true;
+            }
+        } else {
+            $invalid = true;
+        }
+        
+        if ($invalid) {
+            if (isset($az)) $zones = $az;
+            $message = "Invalid availability zone '$zones' for region '$this->_region'";
+            throw new Zend_Service_Amazon_Ec2_Exception($message);
+        }
+        
+        $response = $this->sendRequest($params);
+        $this->_checkExpectedResponseType($response, $expResponse);
+
+        $zones = array();
+        $xpath = $response->getXpath();
+        foreach($xpath->evaluate('//ec2:AvailabilityZones/ec2:member') as $zone) {
+            $zones[] = $zone->nodeValue;
+        }
+        
+        return array('AvailabilityZones' => $zones);
+    }
+    
+    /**
      * Execute a registerInstances or deregisterInstances API call
      * 
      * This method is here to avoid code duplication, given that both method 

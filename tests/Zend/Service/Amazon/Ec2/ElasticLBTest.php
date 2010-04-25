@@ -583,6 +583,187 @@ class Zend_Service_Amazon_Ec2_ElasticLBTest extends PHPUnit_Framework_TestCase
         $this->markTestIncomplete();
     }
     
+    /**
+     * enableAvailabilityZones tests
+     */
+    
+    /**
+     * Test that an exception is thrown if passing an invalid LB name
+     * 
+     * @param string $name
+     * @dataProvider invalidNameProvider
+     * @expectedException Zend_Service_Amazon_Ec2_Exception
+     */
+    public function testEnableZonesInvalidLBName($name)
+    {
+        $this->_elb->enableAvailabilityZones($name, 'us-east-1');
+    }
+    
+    /**
+     * Test that passing an invalid availablity zone throws an exception
+     * 
+     * @param string $zone
+     * @param string $region
+     * 
+     * @dataProvider invalidZoneProvider
+     * @expectedException Zend_Service_Amazon_Ec2_Exception
+     */
+    public function testEnableZonesInvalidZones($zone, $region = 'us-east-1')
+    {
+        Zend_Service_Amazon_Ec2_ElasticLB::setRegion($region);
+        $elb = new Zend_Service_Amazon_Ec2_ElasticLB('accessKey', 'secretKey');
+        $elb->getHttpClient()->setAdapter($this->_adapter);
+        $elb->enableAvailabilityZones('myloadbalancer', $zone);        
+    }
+    
+    public function testEnableZonesSendsCorrectParams()
+    {
+        $this->_adapter->setResponse(self::_createResponseFromFile('response-enablezones-01.xml'));
+        
+        $this->_elb->enableAvailabilityZones('myLoadBalancer', 'us-east-1b');
+        $params = self::_getRequestParams($this->_elb->getHttpClient()->getLastRequest());
+        
+        $this->assertEquals('EnableAvailabilityZonesForLoadBalancer', $params['Action']);
+        $this->assertEquals('myLoadBalancer', $params['LoadBalancerName']);
+    }
+    
+    public function testEnableZonesSendsSingleZoneParam()
+    {
+        $this->_adapter->setResponse(self::_createResponseFromFile('response-enablezones-01.xml'));
+        
+        $this->_elb->enableAvailabilityZones('myLoadBalancer', 'us-east-1b');
+        $params = self::_getRequestParams($this->_elb->getHttpClient()->getLastRequest());
+        
+        $this->assertArrayHasKey('AvailabilityZones.member.1', $params);
+        $this->assertEquals('us-east-1b', $params['AvailabilityZones.member.1']);
+    }
+    
+    public function testEnableZonesSendsMultiZoneParam()
+    {
+        $this->_adapter->setResponse(self::_createResponseFromFile('response-enablezones-01.xml'));
+        
+        $zones = array('us-east-1b', 'us-east-1a', 'us-east-1d');
+        $this->_elb->enableAvailabilityZones('myLoadBalancer', $zones);
+        $params = self::_getRequestParams($this->_elb->getHttpClient()->getLastRequest());
+        
+        foreach($zones as $k => $zone) {
+            $this->assertArrayHasKey('AvailabilityZones.member.' . ++$k, $params);
+            $this->assertEquals($zone, $params['AvailabilityZones.member.' . $k]);
+        }
+    }
+    
+    public function testEnableZonesReturnsZonesArray()
+    {
+        $zones = array('us-east-1c', 'us-east-1b', 'us-east-1a');
+        $this->_adapter->setResponse(self::_createResponseFromFile('response-enablezones-01.xml'));
+        
+        $response = $this->_elb->enableAvailabilityZones('myLoadBalancer', 'us-east-1a');
+        
+        $this->assertArrayHasKey('AvailabilityZones', $response);
+        $this->assertEquals($zones, $response['AvailabilityZones']);
+    }
+    
+    /**
+     * Check that recieving an unexpected response type throws an exception
+     * 
+     * @expectedException Zend_Service_Amazon_Ec2_Exception
+     */
+    public function testEnableZonesInvalidResponseType()
+    {
+        $this->_adapter->setResponse(self::_createResponseFromFile('response-disablezones-01.xml'));
+        $this->_elb->enableAvailabilityZones('myLoadBalancer', 'us-east-1b');
+    } 
+    
+    /**
+     * disableAvailabilityZones tests
+     */
+    
+        /**
+     * Test that an exception is thrown if passing an invalid LB name
+     * 
+     * @param string $name
+     * @dataProvider invalidNameProvider
+     * @expectedException Zend_Service_Amazon_Ec2_Exception
+     */
+    public function testDisableZonesInvalidLBName($name)
+    {
+        $this->_elb->disableAvailabilityZones($name, 'us-east-1');
+    }
+    
+    /**
+     * Test that passing an invalid availablity zone throws an exception
+     * 
+     * @param string $zone
+     * @param string $region
+     * 
+     * @dataProvider invalidZoneProvider
+     * @expectedException Zend_Service_Amazon_Ec2_Exception
+     */
+    public function testDisableZonesInvalidZones($zone, $region = 'us-east-1')
+    {
+        Zend_Service_Amazon_Ec2_ElasticLB::setRegion($region);
+        $elb = new Zend_Service_Amazon_Ec2_ElasticLB('accessKey', 'secretKey');
+        $elb->getHttpClient()->setAdapter($this->_adapter);
+        $elb->disableAvailabilityZones('myloadbalancer', $zone);        
+    }
+    
+    public function testDisableZonesSendsCorrectParams()
+    {
+        $this->_adapter->setResponse(self::_createResponseFromFile('response-disablezones-01.xml'));
+        
+        $this->_elb->disableAvailabilityZones('myLoadBalancer', 'us-east-1b');
+        $params = self::_getRequestParams($this->_elb->getHttpClient()->getLastRequest());
+        
+        $this->assertEquals('DisableAvailabilityZonesForLoadBalancer', $params['Action']);
+        $this->assertEquals('myLoadBalancer', $params['LoadBalancerName']);
+    }
+    
+    public function testDisableZonesSendsSingleZoneParam()
+    {
+        $this->_adapter->setResponse(self::_createResponseFromFile('response-disablezones-01.xml'));
+        
+        $this->_elb->disableAvailabilityZones('myLoadBalancer', 'us-east-1b');
+        $params = self::_getRequestParams($this->_elb->getHttpClient()->getLastRequest());
+        
+        $this->assertArrayHasKey('AvailabilityZones.member.1', $params);
+        $this->assertEquals('us-east-1b', $params['AvailabilityZones.member.1']);
+    }
+    
+    public function testDisableZonesSendsMultiZoneParam()
+    {
+        $this->_adapter->setResponse(self::_createResponseFromFile('response-disablezones-01.xml'));
+        
+        $zones = array('us-east-1b', 'us-east-1a', 'us-east-1d');
+        $this->_elb->disableAvailabilityZones('myLoadBalancer', $zones);
+        $params = self::_getRequestParams($this->_elb->getHttpClient()->getLastRequest());
+        
+        foreach($zones as $k => $zone) {
+            $this->assertArrayHasKey('AvailabilityZones.member.' . ++$k, $params);
+            $this->assertEquals($zone, $params['AvailabilityZones.member.' . $k]);
+        }
+    }
+    
+    public function testDisableZonesReturnsZonesArray()
+    {
+        $zones = array('us-east-1c', 'us-east-1b');
+        $this->_adapter->setResponse(self::_createResponseFromFile('response-disablezones-01.xml'));
+        
+        $response = $this->_elb->disableAvailabilityZones('myLoadBalancer', 'us-east-1c');
+        
+        $this->assertArrayHasKey('AvailabilityZones', $response);
+        $this->assertEquals($zones, $response['AvailabilityZones']);
+    }
+    
+    /**
+     * Check that recieving an unexpected response type throws an exception
+     * 
+     * @expectedException Zend_Service_Amazon_Ec2_Exception
+     */
+    public function testDisableZonesInvalidResponseType()
+    {
+        $this->_adapter->setResponse(self::_createResponseFromFile('response-enablezones-01.xml'));
+        $this->_elb->disableAvailabilityZones('myLoadBalancer', 'us-east-1b');
+    }
     
     /**
      * Data Providers
